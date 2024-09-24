@@ -87,16 +87,16 @@ RUN mkdir -p /root/.jupyter && \
     echo "c.NotebookApp.notebook_dir = '${JUPYTER_NOTEBOOK_DIR}'" >> /root/.jupyter/jupyter_notebook_config.py && \
     echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py
 
-# 设置 Jupyter Notebook 密码 (如果 JUPYTER_PASSWORD 不为空)
 RUN if [ -n "${JUPYTER_PASSWORD}" ]; then \
-    jupyter notebook password --stdin < <(echo "${JUPYTER_PASSWORD}"); \
+    echo -e "from jupyter_server.auth import passwd\n\
+    password = '${JUPYTER_PASSWORD}'\n\
+    hash = passwd(password)\n\
+    print(f\"c.NotebookApp.password = '{hash}'\")" | python >> /root/.jupyter/jupyter_notebook_config.py; \
     fi
 
-# 设置 Jupyter Notebook token (如果 JUPYTER_TOKEN 不为空)
 RUN if [ -n "${JUPYTER_TOKEN}" ]; then \
     echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> /root/.jupyter/jupyter_notebook_config.py; \
     fi
-
 # 暴露SSH和Jupyter Notebook端口
 EXPOSE 22 8888
 
