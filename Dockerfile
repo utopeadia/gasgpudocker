@@ -1,5 +1,5 @@
 ARG IMAGE_NAME=nvidia/cuda
-FROM ${IMAGE_NAME}:12.6.1-devel-ubuntu24.04 as base
+FROM ${IMAGE_NAME}:12.6.1-cudnn-devel-ubuntu24.04 as base
 
 FROM base as base-amd64
 
@@ -34,13 +34,6 @@ ENV JUPYTER_PASSWORD=""
 ENV JUPYTER_TOKEN=""
 ENV JUPYTER_PORT=8888
 ENV JUPYTER_NOTEBOOK_DIR="/root"
-
-# 安装 cuDNN
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ${NV_CUDNN_PACKAGE} \
-    ${NV_CUDNN_PACKAGE_DEV} \
-    && apt-mark hold ${NV_CUDNN_PACKAGE_NAME} \
-    && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y \
     wget \
