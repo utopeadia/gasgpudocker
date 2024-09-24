@@ -103,7 +103,7 @@ RUN echo '#!/bin/bash\n\
     if [ ! -f "/home/$USERNAME/.ssh/ssh_host_rsa_key" ]; then\n\
         ssh-keygen -A\n\
     fi\n\
-    echo "$USERNAME:$USERNAME" | chpasswd\n\
+    echo "$USERNAME:$PASSWORD" | chpasswd\n\
     service ssh start\n\
     sudo -u $USERNAME -E /bin/bash -c "source /home/$USERNAME/miniconda3/etc/profile.d/conda.sh && conda activate jupyter_env && jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT} --no-browser --allow-root --NotebookApp.token=${JUPYTER_TOKEN} --NotebookApp.password=${JUPYTER_PASSWORD}"\n\
     ' > /start.sh && chmod +x /start.sh
