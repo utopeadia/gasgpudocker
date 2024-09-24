@@ -47,5 +47,5 @@ jobs:
           build-args: |
             TARGETARCH=${{ matrix.target-arch }}
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/gasgpudocker:${{ matrix.target-arch }}-latest
+          tags: ghcr.io/utopeadia/gasgpudocker:${{ matrix.target-arch }}-latest
           logout: true
