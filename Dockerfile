@@ -107,7 +107,7 @@ RUN echo '#!/bin/bash\n\
     fi\n\
     echo "root:${ROOT_PASSWORD}" | chpasswd\n\
     service ssh start\n\
-    source /opt/conda/etc/profile.d/conda.sh\n\
+    source /root/miniconda3/etc/profile.d/conda.sh\n\
     conda activate jupyter_env\n\
     jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token="" --NotebookApp.password=""\n\
     ' > /start.sh && chmod +x /start.sh
