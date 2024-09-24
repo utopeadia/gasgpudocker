@@ -1,10 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches:
-      - main # 替换成你的分支名称
-
+  workflow_dispatch:
+  
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
