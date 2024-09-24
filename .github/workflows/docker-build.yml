@@ -1,0 +1,57 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main # 替换成你的分支名称
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target-arch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image to Docker Hub
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/${{ matrix.target-arch }}
+          build-args: |
+            TARGETARCH=${{ matrix.target-arch }}
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/gasgpudocker:${{ matrix.target-arch }}-latest
+
+      - name: Build and push Docker image to GitHub Container Registry
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/${{ matrix.target-arch }}
+          build-args: |
+            TARGETARCH=${{ matrix.target-arch }}
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/gasgpudocker:${{ matrix.target-arch }}-latest
+
+      - name: Logout of Docker Hub
+        uses: docker/logout-action@v2
+
+      - name: Logout of GitHub Container Registry
+        uses: docker/logout-action@v2
