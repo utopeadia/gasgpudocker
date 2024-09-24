@@ -21,17 +21,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     ROOT_PASSWORD=change_this_password \
-    USERNAME=gasman \
+    USERNAME=ubuntu \
     PASSWORD=change_this_password \
-    PUID=1000 \
-    PGID=1000 \
     JUPYTER_PASSWORD="" \
     JUPYTER_TOKEN="" \
     JUPYTER_PORT=8888 \
     JUPYTER_NOTEBOOK_DIR="/home/${USERNAME}"
 
 RUN groupadd --gid ${PGID} ${USERNAME} \
-    && useradd --uid ${PUID} --gid ${PGID} -m ${USERNAME} \
     && echo "${USERNAME}:${PASSWORD}" | chpasswd \
     && usermod -aG sudo ${USERNAME} \
     && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
