@@ -30,10 +30,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     JUPYTER_PORT=8888 \
     JUPYTER_NOTEBOOK_DIR="/home/$USERNAME"
 
-RUN groupadd --gid $PGID $USERNAME \
-    && useradd --uid $PUID --gid $PGID -m $USERNAME \
-    && echo "$USERNAME:$PASSWORD" | chpasswd \
-    && adduser $USERNAME sudo \
+RUN groupadd --gid ${PGID} ${USERNAME} \
+    && useradd --uid ${PUID} --gid ${PGID} -m ${USERNAME} \
+    && echo "${USERNAME}:${PASSWORD}" | chpasswd \
+    && usermod -aG sudo ${USERNAME} \
     && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 
