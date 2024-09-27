@@ -74,11 +74,11 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi && \
     /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
     rm ~/miniconda.sh && \
-    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    conda init bash && \
-    conda activate base
-
+    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc
+    
 RUN conda config --add channels conda-forge \
+    && conda init bash \
+    && conda activate base
     && conda create -n jupyter_env -c conda-forge jupyter -y \
     && conda clean -afy
 
