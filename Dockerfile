@@ -26,6 +26,7 @@ LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 ENV ROOT_PASSWORD=change_this_password
+ENV UBUNTU_PASSWORD=change_this_password
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
@@ -50,6 +51,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置语言环境
+RUN echo "ubuntu:${UBUNTU_PASSWORD}" | chpasswd
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
@@ -61,7 +63,8 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
 # 安装 Miniconda
-ENV CONDA_DIR /root/miniconda3
+USER ubuntu
+ENV CONDA_DIR /home/ubuntu/miniconda3
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
@@ -69,9 +72,12 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi && \
     /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
     rm ~/miniconda.sh && \
-    ln -s $CONDA_DIR/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> /root/.bashrc && \
-    echo "conda activate base" >> /root/.bashrc
+    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate base" >> ~/.bashrc && \
+    source ~/.bashrc && \
+    conda create -n jupyter_env -c conda-forge jupyter -y && \
+    conda clean -afy
+
 
 ENV PATH=$CONDA_DIR/bin:$PATH
 
@@ -80,12 +86,11 @@ RUN conda create -n jupyter_env -c conda-forge jupyter -y && \
 
 WORKDIR /root
 
-# 创建 Jupyter Notebook 配置文件
-RUN mkdir -p /root/.jupyter && \
-    echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.notebook_dir = '${JUPYTER_NOTEBOOK_DIR}'" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py
+# 创建 Jupyter Notebook 配置文件 (ubuntu 用户)
+RUN mkdir -p ~/.jupyter && \
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> ~/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> ~/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.notebook_dir = '/home/ubuntu'" >> ~/.jupyter/jupyter_notebook_config.py # 修改默认目录
 
 RUN if [ -n "${JUPYTER_PASSWORD}" ]; then \
     echo -e "from jupyter_server.auth import passwd\n\
@@ -100,16 +105,19 @@ RUN if [ -n "${JUPYTER_TOKEN}" ]; then \
 # 暴露SSH和Jupyter Notebook端口
 EXPOSE 22 8888
 
-# 创建启动脚本
+USER root
 RUN echo '#!/bin/bash\n\
     if [ ! -f "/root/.ssh/ssh_host_rsa_key" ]; then\n\
     ssh-keygen -A\n\
     fi\n\
     echo "root:${ROOT_PASSWORD}" | chpasswd\n\
     service ssh start\n\
-    source /root/miniconda3/etc/profile.d/conda.sh\n\
-    conda activate jupyter_env\n\
-    jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token="" --NotebookApp.password=""\n\
+    # 以 ubuntu 用户启动 jupyter\n\
+    su - ubuntu -c "\n\
+        source /home/ubuntu/miniconda3/etc/profile.d/conda.sh\n\
+        conda activate jupyter_env\n\
+        jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=\"\" --NotebookApp.password=\"\"\n\
+    "\n\
     ' > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]
