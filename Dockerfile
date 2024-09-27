@@ -71,9 +71,9 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     elif [ "$TARGETARCH" = "arm64" ]; then \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda.sh; \
     fi && \
-    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
+    /bin/bash ~/miniconda.sh -b -p /home/ubuntu/miniconda3/miniconda3 && \
     rm ~/miniconda.sh && \
-    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo ". /home/ubuntu/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
     echo "conda activate base" >> ~/.bashrc
     
 USER ubuntu 
@@ -86,8 +86,6 @@ ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create -n jupyter_env -c conda-forge jupyter -y && \
     conda clean -afy
 
-WORKDIR /root
-
 # 创建 Jupyter Notebook 配置文件 (ubuntu 用户)
 RUN mkdir -p ~/.jupyter && \
     echo "c.NotebookApp.ip = '0.0.0.0'" >> ~/.jupyter/jupyter_notebook_config.py && \
@@ -98,11 +96,11 @@ RUN if [ -n "${JUPYTER_PASSWORD}" ]; then \
     echo -e "from jupyter_server.auth import passwd\n\
     password = '${JUPYTER_PASSWORD}'\n\
     hash = passwd(password)\n\
-    print(f\"c.NotebookApp.password = '{hash}'\")" | python >> /root/.jupyter/jupyter_notebook_config.py; \
+    print(f\"c.NotebookApp.password = '{hash}'\")" | python >> ~/.jupyter/jupyter_notebook_config.py; \
     fi
 
 RUN if [ -n "${JUPYTER_TOKEN}" ]; then \
-    echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> /root/.jupyter/jupyter_notebook_config.py; \
+    echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> ~/.jupyter/jupyter_notebook_config.py; \
     fi
 # 暴露SSH和Jupyter Notebook端口
 EXPOSE 22 8888
