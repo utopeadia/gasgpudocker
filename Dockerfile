@@ -63,7 +63,8 @@ RUN mkdir /var/run/sshd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
-# 安装 Miniconda
+
+# 使用 ubuntu 用户安装 miniconda 和配置 jupyter
 USER ubuntu
 ENV CONDA_DIR /home/ubuntu/miniconda3
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
@@ -71,20 +72,15 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     elif [ "$TARGETARCH" = "arm64" ]; then \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda.sh; \
     fi && \
-    /bin/bash ~/miniconda.sh -b -p /home/ubuntu/miniconda3/miniconda3 && \
+    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
     rm ~/miniconda.sh && \
-    echo ". /home/ubuntu/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> ~/.bashrc
-    
-USER ubuntu 
-RUN $CONDA_DIR/bin/conda config --add channels conda-forge \
-    && $CONDA_DIR/bin/conda create -n jupyter_env -c conda-forge jupyter -y \
-    && $CONDA_DIR/bin/conda clean -afy
+    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    conda init bash && \
+    conda activate base
 
-ENV PATH=$CONDA_DIR/bin:$PATH
-
-RUN conda create -n jupyter_env -c conda-forge jupyter -y && \
-    conda clean -afy
+RUN conda config --add channels conda-forge \
+    && conda create -n jupyter_env -c conda-forge jupyter -y \
+    && conda clean -afy
 
 # 创建 Jupyter Notebook 配置文件 (ubuntu 用户)
 RUN mkdir -p ~/.jupyter && \
@@ -102,16 +98,14 @@ RUN if [ -n "${JUPYTER_PASSWORD}" ]; then \
 RUN if [ -n "${JUPYTER_TOKEN}" ]; then \
     echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> ~/.jupyter/jupyter_notebook_config.py; \
     fi
-# 暴露SSH和Jupyter Notebook端口
-EXPOSE 22 8888
+
+RUN ssh-keygen -t rsa -b 4096 -f /home/ubuntu/.ssh/id_rsa -N "" -q
 
 USER root
+
 RUN echo '#!/bin/bash\n\
     if [ ! -f "/root/.ssh/ssh_host_rsa_key" ]; then\n\
     ssh-keygen -A\n\
-    fi\n\
-    if [ ! -f "/home/ubuntu/.ssh/id_rsa" ]; then\n\
-        su - ubuntu -c "ssh-keygen -t rsa -b 4096 -f /home/ubuntu/.ssh/id_rsa -N ''"\n\
     fi\n\
     echo "root:${ROOT_PASSWORD}" | chpasswd\n\
     echo "ubuntu:${UBUNTU_PASSWORD}" | chpasswd\n\
@@ -123,5 +117,9 @@ RUN echo '#!/bin/bash\n\
         jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=\"\" --NotebookApp.password=\"\"\n\
     "\n\
     ' > /start.sh && chmod +x /start.sh
+
+
+# 暴露SSH和Jupyter Notebook端口
+EXPOSE 22 8888
 
 CMD ["/start.sh"]
