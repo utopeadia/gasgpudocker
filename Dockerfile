@@ -37,6 +37,7 @@ ENV JUPYTER_PORT=8888
 ENV JUPYTER_NOTEBOOK_DIR="/root"
 
 RUN apt-get update && apt-get install -y \
+    bash \
     wget \
     bzip2 \
     ca-certificates \
@@ -73,12 +74,12 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
     rm ~/miniconda.sh && \
     echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> ~/.bashrc && \
-    /bin/bash source ~/.bashrc && \
-    conda config --add channels conda-forge && \
-    conda create -n jupyter_env -c conda-forge jupyter -y && \
-    conda clean -afy
-
+    echo "conda activate base" >> ~/.bashrc
+    
+USER ubuntu 
+RUN $CONDA_DIR/bin/conda config --add channels conda-forge \
+    && $CONDA_DIR/bin/conda create -n jupyter_env -c conda-forge jupyter -y \
+    && $CONDA_DIR/bin/conda clean -afy
 
 ENV PATH=$CONDA_DIR/bin:$PATH
 
