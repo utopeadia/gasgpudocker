@@ -110,7 +110,11 @@ RUN echo '#!/bin/bash\n\
     if [ ! -f "/root/.ssh/ssh_host_rsa_key" ]; then\n\
     ssh-keygen -A\n\
     fi\n\
+    if [ ! -f "/home/ubuntu/.ssh/id_rsa" ]; then\n\
+        su - ubuntu -c "ssh-keygen -t rsa -b 4096 -f /home/ubuntu/.ssh/id_rsa -N ''"\n\
+    fi\n\
     echo "root:${ROOT_PASSWORD}" | chpasswd\n\
+    echo "ubuntu:${UBUNTU_PASSWORD}" | chpasswd\n\
     service ssh start\n\
     # 以 ubuntu 用户启动 jupyter\n\
     su - ubuntu -c "\n\
