@@ -76,9 +76,9 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     rm ~/miniconda.sh && \
     echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc
     
-RUN conda config --add channels conda-forge \
-    && conda create -n jupyter_env -c conda-forge jupyter -y \
-    && conda clean -afy
+RUN $CONDA_DIR/bin/conda config --add channels conda-forge \
+    && $CONDA_DIR/bin/conda create -n jupyter_env -c conda-forge jupyter -y \
+    && $CONDA_DIR/bin/conda clean -afy
 
 # 创建 Jupyter Notebook 配置文件 (ubuntu 用户)
 RUN mkdir -p ~/.jupyter && \
