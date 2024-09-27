@@ -2,39 +2,39 @@ ARG IMAGE_NAME=nvidia/cuda
 FROM ${IMAGE_NAME}:12.6.1-cudnn-devel-ubuntu24.04 as base
 
 FROM base as base-amd64
+
 ENV NV_CUDNN_VERSION 9.3.0.75-1
 ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
 ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
 ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
 
 FROM base as base-arm64
+
 ENV NV_CUDNN_VERSION 9.3.0.75-1
 ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
 ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
 ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
 
+FROM base-${TARGETARCH}
+
 ARG TARGETARCH
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Asia/Shanghai \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    ROOT_PASSWORD=change_this_password \
-    USERNAME=ubuntu \
-    PASSWORD=change_this_password \
-    JUPYTER_PASSWORD="" \
-    JUPYTER_TOKEN="" \
-    JUPYTER_PORT=8888 \
-    JUPYTER_NOTEBOOK_DIR="/home/${USERNAME}"
+LABEL maintainer "utopeadia <https://github.com/utopeadia>"
+LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
 
-RUN groupadd --gid ${PGID} ${USERNAME} \
-    && echo "${USERNAME}:${PASSWORD}" | chpasswd \
-    && usermod -aG sudo ${USERNAME} \
-    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+ENV ROOT_PASSWORD=change_this_password
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
+# Jupyter Notebook 配置环境变量
+ENV JUPYTER_PASSWORD=""
+ENV JUPYTER_TOKEN=""
+ENV JUPYTER_PORT=8888
+ENV JUPYTER_NOTEBOOK_DIR="/root"
 
-# Install necessary packages
 RUN apt-get update && apt-get install -y \
     wget \
     bzip2 \
@@ -49,60 +49,67 @@ RUN apt-get update && apt-get install -y \
     locales \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up locale
+# 设置语言环境
 RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8 \
-    LANGUAGE en_US:en \
-    LC_ALL en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
-# Configure SSH
-RUN mkdir /var/run/sshd \
-    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
-    && sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+# 设置SSH
+RUN mkdir /var/run/sshd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
-# Install Miniconda for the user
-ENV CONDA_DIR /home/${USERNAME}/miniconda3
-USER ${USERNAME}
-WORKDIR /home/${USERNAME}
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh \
-    && /bin/bash ~/miniconda.sh -b -p $CONDA_DIR \
-    && rm ~/miniconda.sh \
-    && ln -s $CONDA_DIR/etc/profile.d/conda.sh /home/${USERNAME}/.bashrc \
-    && echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> /home/${USERNAME}/.bashrc \
-    && echo "conda activate base" >> /home/${USERNAME}/.bashrc \
-    && $CONDA_DIR/bin/conda create -n jupyter_env -c conda-forge jupyter -y \
-    && $CONDA_DIR/bin/conda clean -afy
+# 安装 Miniconda
+ENV CONDA_DIR /root/miniconda3
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda.sh; \
+    fi && \
+    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
+    rm ~/miniconda.sh && \
+    ln -s $CONDA_DIR/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> /root/.bashrc && \
+    echo "conda activate base" >> /root/.bashrc
 
-# Configure Jupyter Notebook
-RUN mkdir -p /home/${USERNAME}/.jupyter \
-    && echo "c.NotebookApp.ip = '0.0.0.0'" >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py \
-    && echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py \
-    && echo "c.NotebookApp.notebook_dir = '${JUPYTER_NOTEBOOK_DIR}'" >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py \
-    && echo "c.NotebookApp.allow_root = True" >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+RUN conda create -n jupyter_env -c conda-forge jupyter -y && \
+    conda clean -afy
+
+WORKDIR /root
+
+# 创建 Jupyter Notebook 配置文件
+RUN mkdir -p /root/.jupyter && \
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> /root/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.notebook_dir = '${JUPYTER_NOTEBOOK_DIR}'" >> /root/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py
 
 RUN if [ -n "${JUPYTER_PASSWORD}" ]; then \
-        echo -e "from jupyter_server.auth import passwd\n\
-        password = '${JUPYTER_PASSWORD}'\n\
-        hash = passwd(password)\n\
-        print(f\"c.NotebookApp.password = '{hash}'\")" | python >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py; \
+    echo -e "from jupyter_server.auth import passwd\n\
+    password = '${JUPYTER_PASSWORD}'\n\
+    hash = passwd(password)\n\
+    print(f\"c.NotebookApp.password = '{hash}'\")" | python >> /root/.jupyter/jupyter_notebook_config.py; \
     fi
 
 RUN if [ -n "${JUPYTER_TOKEN}" ]; then \
-        echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> /home/${USERNAME}/.jupyter/jupyter_notebook_config.py; \
+    echo "c.NotebookApp.token = '${JUPYTER_TOKEN}'" >> /root/.jupyter/jupyter_notebook_config.py; \
     fi
-
-# Expose SSH and Jupyter Notebook ports
+# 暴露SSH和Jupyter Notebook端口
 EXPOSE 22 8888
 
-# Create startup script
-USER root
+# 创建启动脚本
 RUN echo '#!/bin/bash\n\
-    if [ ! -f "/home/${USERNAME}/.ssh/ssh_host_rsa_key" ]; then\n\
-        ssh-keygen -A\n\
+    if [ ! -f "/root/.ssh/ssh_host_rsa_key" ]; then\n\
+    ssh-keygen -A\n\
     fi\n\
-    echo "${USERNAME}:${PASSWORD}" | chpasswd\n\
+    echo "root:${ROOT_PASSWORD}" | chpasswd\n\
     service ssh start\n\
-    sudo -u ${USERNAME} -E /bin/bash -c "source /home/${USERNAME}/miniconda3/etc/profile.d/conda.sh && conda activate jupyter_env && jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT} --no-browser --allow-root --NotebookApp.token=${JUPYTER_TOKEN} --NotebookApp.password=${JUPYTER_PASSWORD}"\n\
+    source /root/miniconda3/etc/profile.d/conda.sh\n\
+    conda activate jupyter_env\n\
+    jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token="" --NotebookApp.password=""\n\
     ' > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]
