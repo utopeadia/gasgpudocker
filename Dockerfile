@@ -78,7 +78,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     
 RUN conda config --add channels conda-forge \
     && conda init bash \
-    && conda activate base
+    && conda activate base \
     && conda create -n jupyter_env -c conda-forge jupyter -y \
     && conda clean -afy
 
