@@ -72,7 +72,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     elif [ "$TARGETARCH" = "arm64" ]; then \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda.sh; \
     fi && \
-    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
+    /bin/bash ~/miniconda.sh -b -u -p $CONDA_DIR && \
     rm ~/miniconda.sh && \
     echo ". $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc
     
